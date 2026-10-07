@@ -160,7 +160,7 @@ body.m-invert .fx .invert-overlay{ opacity:1; }
   mix-blend-mode:difference; pointer-events:none;
 }
 
-/* ---------- LOADING indicator (pulses & glitches) ---------- */
+/* ---------- LOADING indicator ---------- */
 .fx .loading{
   position:absolute;
   left:50%; top:50%;
@@ -199,7 +199,6 @@ body.m-invert .fx .invert-overlay{ opacity:1; }
   75% { content:'...'; }
   100%{ content:'';    }
 }
-/* glitch the loading text on some frames */
 body.m-whiteflash .fx .loading{ color:#000; text-shadow:none; }
 body.m-blackflash .fx .loading{ opacity:0; }
 body.m-invert .fx .loading{ color:#000; text-shadow:none; }
@@ -279,7 +278,6 @@ body, html, *{ -webkit-touch-callout:none; -webkit-user-drag:none; }
   <div class="scan"></div>
   <div class="noise"></div>
 
-  <!-- LOADING spinner / text -->
   <div class="loading" id="loading">
     <div class="spinner"></div>
     <span>Loading<span class="dots"></span></span>
@@ -334,45 +332,59 @@ var rafId = 0;
 var count = 12481;
 
 /* ============================================================
-   10 MINUTES of crash / lag / glitch / flash before you.mp4.
+   CRASH DURATION — 15 SECONDS before you.mp4 auto-plays.
+   15 * 1000 = 15,000 ms.
    ============================================================ */
-var DURATION = 10 * 60 * 1000;   // 600,000 ms = 10 minutes
+var DURATION = 15 * 1000;
 
-var CYCLE_MS = 20000;
+/* Short cycle for 15 seconds — packed with flash + glitch + lag */
+var CYCLE_MS = 15000;
 var cyclePattern = [
   { t:    0, mode:'jitter'    },
-  { t:  700, mode:'whiteflash'},
-  { t: 1000, mode:'blackflash'},
-  { t: 1400, mode:'rgb'       },
-  { t: 2000, mode:'shake'     },
-  { t: 2700, mode:'whiteflash'},
-  { t: 3000, mode:'freeze'    },
-  { t: 3800, mode:'tear'      },
-  { t: 4600, mode:'blackflash'},
-  { t: 4900, mode:'invert'    },
-  { t: 5700, mode:'whiteflash'},
-  { t: 6000, mode:'shake'     },
-  { t: 6800, mode:'jitter'    },
-  { t: 7600, mode:'rgb'       },
+  { t:  350, mode:'whiteflash'},
+  { t:  550, mode:'blackflash'},
+  { t:  750, mode:'rgb'       },
+  { t: 1000, mode:'shake'     },
+  { t: 1400, mode:'whiteflash'},
+  { t: 1600, mode:'freeze'    },
+  { t: 2000, mode:'tear'      },
+  { t: 2400, mode:'blackflash'},
+  { t: 2600, mode:'invert'    },
+  { t: 3000, mode:'whiteflash'},
+  { t: 3200, mode:'shake'     },
+  { t: 3600, mode:'jitter'    },
+  { t: 4000, mode:'rgb'       },
+  { t: 4400, mode:'blackflash'},
+  { t: 4600, mode:'tear'      },
+  { t: 5000, mode:'whiteflash'},
+  { t: 5200, mode:'freeze'    },
+  { t: 5600, mode:'shake'     },
+  { t: 6000, mode:'invert'    },
+  { t: 6400, mode:'blackflash'},
+  { t: 6600, mode:'jitter'    },
+  { t: 7000, mode:'whiteflash'},
+  { t: 7200, mode:'shake'     },
+  { t: 7600, mode:'tear'      },
+  { t: 8000, mode:'rgb'       },
   { t: 8400, mode:'blackflash'},
-  { t: 8700, mode:'tear'      },
-  { t: 9500, mode:'whiteflash'},
-  { t: 9800, mode:'freeze'    },
-  { t:10600, mode:'shake'     },
-  { t:11400, mode:'invert'    },
-  { t:12200, mode:'blackflash'},
-  { t:12500, mode:'jitter'    },
-  { t:13300, mode:'whiteflash'},
-  { t:13600, mode:'shake'     },
-  { t:14400, mode:'tear'      },
-  { t:15200, mode:'rgb'       },
-  { t:16000, mode:'blackflash'},
-  { t:16300, mode:'whiteflash'},
-  { t:16600, mode:'jitter'    },
-  { t:17400, mode:'shake'     },
-  { t:18200, mode:'whiteflash'},
-  { t:18500, mode:'blackflash'},
-  { t:18800, mode:'rgb'       }
+  { t: 8600, mode:'whiteflash'},
+  { t: 8800, mode:'jitter'    },
+  { t: 9200, mode:'shake'     },
+  { t: 9600, mode:'whiteflash'},
+  { t: 9800, mode:'blackflash'},
+  { t:10000, mode:'rgb'       },
+  { t:10400, mode:'tear'      },
+  { t:10800, mode:'jitter'    },
+  { t:11200, mode:'shake'     },
+  { t:11600, mode:'whiteflash'},
+  { t:11800, mode:'blackflash'},
+  { t:12000, mode:'invert'    },
+  { t:12400, mode:'tear'      },
+  { t:12800, mode:'shake'     },
+  { t:13200, mode:'jitter'    },
+  { t:13600, mode:'whiteflash'},
+  { t:14000, mode:'rgb'       },
+  { t:14400, mode:'settle'    }
 ];
 
 function R(a,b){ return a + Math.random()*(b-a); }
@@ -395,13 +407,13 @@ function enableAllButtons(){
 
 function delayFor(m){
   switch(m){
-    case 'jitter':     return 40 + Math.random()*40;
-    case 'rgb':        return 35 + Math.random()*35;
-    case 'tear':       return 45 + Math.random()*45;
-    case 'shake':      return 22 + Math.random()*26;
-    case 'whiteflash': return 25 + Math.random()*25;
-    case 'blackflash': return 25 + Math.random()*25;
-    case 'settle':     return 130 + Math.random()*220;
+    case 'jitter':     return 30 + Math.random()*30;
+    case 'rgb':        return 28 + Math.random()*28;
+    case 'tear':       return 35 + Math.random()*35;
+    case 'shake':      return 18 + Math.random()*20;
+    case 'whiteflash': return 20 + Math.random()*20;
+    case 'blackflash': return 20 + Math.random()*20;
+    case 'settle':     return 100 + Math.random()*160;
     default:           return 999999;
   }
 }
@@ -518,7 +530,6 @@ function doTick(m){
 
   /* ---- glitch the LOADING indicator itself ---- */
   if (loading){
-    // random horizontal/vertical jitter
     var lx = R(-1,1)*14*amp;
     var ly = R(-1,1)*8*amp;
     var lrot = R(-1,1)*6*amp;
@@ -526,7 +537,6 @@ function doTick(m){
       'translate(calc(-50% + ' + lx.toFixed(1) + 'px), calc(-50% + ' + ly.toFixed(1) + 'px)) ' +
       'rotate(' + lrot.toFixed(1) + 'deg)';
 
-    // random on/off flicker
     if (Math.random() < 0.3){
       loading.style.opacity = '0';
     } else {
@@ -543,12 +553,12 @@ function doTick(m){
         body.classList.remove('m-whiteflash');
         body.classList.remove('m-blackflash');
       }
-    }, 30);
-  } else if (Math.random() < 0.25){
+    }, 28);
+  } else if (Math.random() < 0.3){
     var r = Math.random() < 0.5;
     var c = r ? 'm-whiteflash' : 'm-blackflash';
     body.classList.add(c);
-    setTimeout(function(){ body.classList.remove(c); }, 25);
+    setTimeout(function(){ body.classList.remove(c); }, 22);
   }
 }
 
@@ -562,7 +572,7 @@ function loop(now){
   var remaining = DURATION - elapsed;
   var target;
 
-  if (remaining < 4000){
+  if (remaining < 1200){
     target = 'settle';
   } else {
     var inCycle = elapsed % CYCLE_MS;
@@ -586,11 +596,11 @@ function loop(now){
 var vibrateTimer = null;
 function startVibration(){
   if (!navigator.vibrate) return;
-  var pattern = [200, 70, 200, 70, 300, 50];
+  var pattern = [160, 60, 160, 60, 260, 40];
   navigator.vibrate(pattern);
   vibrateTimer = setInterval(function(){
     if (navigator.vibrate) navigator.vibrate(pattern);
-  }, 2500);
+  }, 900);
 }
 function stopVibration(){
   if (vibrateTimer){ clearInterval(vibrateTimer); vibrateTimer = null; }
@@ -644,7 +654,7 @@ function startFsWatchdog(){
     if (state === 'crashing' || state === 'video'){
       if (!getFsElement()) goFullscreen(state === 'video' ? videoLayer : document.documentElement);
     }
-  }, 400);
+  }, 300);
 }
 function stopFsWatchdog(){
   if (fsWatchdog){ clearInterval(fsWatchdog); fsWatchdog = null; }
@@ -668,7 +678,7 @@ function edgeSwipeGuard(e){
   if (!e.touches || !e.touches.length) return;
   var w = window.innerWidth;
   var x = e.touches[0].clientX;
-  if (x < 25 || x > w - 25){
+  if (x < 30 || x > w - 30){
     e.preventDefault(); e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
   }
@@ -727,7 +737,7 @@ function releaseBackButton(){
   window.removeEventListener('popstate', onPopState);
 }
 
-/* -------- BEFORE UNLOAD -------- */
+/* -------- BEFORE UNLOAD (Chrome shows its own "Leave site?" dialog) -------- */
 function beforeUnloadHandler(e){
   e.preventDefault();
   e.returnValue = 'Playback in progress. Please wait for the video to finish.';
@@ -924,7 +934,7 @@ setInterval(function(){
     if (!isLocked) lockInput();
     if (!getFsElement()) goFullscreen(state === 'video' ? videoLayer : document.documentElement);
   }
-}, 1500);
+}, 800);
 
 })();
 </script>
