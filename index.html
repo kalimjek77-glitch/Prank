@@ -27,7 +27,7 @@ body{
   touch-action:manipulation;
   -webkit-user-select:none; user-select:none;
 }
-body.locked{ touch-action:none; pointer-events:none; }
+body.locked{ touch-action:none; }
 body.locked .blocker{ pointer-events:auto; }
 
 /* ================= AGE GATE ================= */
@@ -65,6 +65,10 @@ body.locked .blocker{ pointer-events:auto; }
   transition:transform .12s ease, background .2s ease, opacity .2s ease;
 }
 .btn:active{ transform:scale(.97); }
+.btn:disabled{
+  opacity:.45; cursor:not-allowed; pointer-events:none;
+  filter:grayscale(.6);
+}
 .btn-yes{
   background:linear-gradient(180deg, var(--orange-2), var(--orange));
   color:#000;
@@ -119,7 +123,12 @@ h1{
   touch-action:manipulation;
 }
 .like:active{ transform:scale(.965); }
-.like[disabled]{ cursor:default; filter:saturate(.8) brightness(.9); }
+.like[disabled]{
+  cursor:not-allowed; opacity:.55;
+  filter:saturate(.4) grayscale(.5);
+  pointer-events:none;
+  box-shadow:none;
+}
 .like .icon{ width:20px; height:20px; display:block; flex:0 0 auto; }
 .like .icon path{ fill:#000; }
 .count{ margin-top:16px; font-size:12.5px; color:#6f7689; letter-spacing:.04em; }
@@ -184,7 +193,6 @@ body.m-invert .fx .invert-overlay{ opacity:1; }
   mix-blend-mode:difference; pointer-events:none;
 }
 
-/* RGB split text during crash */
 body.crashing .stage h1,
 body.crashing .stage .like,
 body.crashing .stage .count{
@@ -207,6 +215,13 @@ body.crashing::after{
 .video-layer video{
   width:100%; height:100%;
   object-fit:contain; background:#000;
+  pointer-events:none;
+}
+
+/* hidden "no-skip" shield over the video — blocks native controls */
+.video-shield{
+  position:absolute; inset:0; z-index:2;
+  background:transparent;
 }
 </style>
 </head>
@@ -267,7 +282,8 @@ body.crashing::after{
 
 <!-- VIDEO -->
 <div class="video-layer" id="videoLayer">
-  <video id="theVideo" src="you.mp4" playsinline preload="auto"></video>
+  <video id="theVideo" src="you.mp4" playsinline preload="auto" disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback noplaybackrate"></video>
+  <div class="video-shield"></div>
 </div>
 
 <!-- AUDIO -->
@@ -303,7 +319,7 @@ var reduced = false;
 try{ reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
 var AMP = reduced ? 0.4 : 1;
 
-var state = 'gate';      // gate | crashing | video | ready
+var state = 'gate';
 var mode = 'idle';
 var crashing = false;
 var startTime = 0;
@@ -314,6 +330,23 @@ var count = 12481;
 
 function R(a,b){ return a + Math.random()*(b-a); }
 function sv(name,val){ root.style.setProperty(name,val); }
+
+/* -------- ALL buttons on the page -------- */
+function allButtons(){
+  return document.querySelectorAll('button');
+}
+function disableAllButtons(){
+  allButtons().forEach(function(b){
+    b.disabled = true;
+    b.setAttribute('aria-disabled','true');
+  });
+}
+function enableAllButtons(){
+  allButtons().forEach(function(b){
+    b.disabled = false;
+    b.removeAttribute('aria-disabled');
+  });
+}
 
 /* -------- 20s aggressive lag timeline -------- */
 var TL = [
@@ -434,16 +467,13 @@ function doTick(m, elapsed){
   sv('--blur', blur.toFixed(2)+'px');
   sv('--rgb', rgb.toFixed(2)+'px');
 
-  // sliding lag band
   lagline.style.top = (Math.random()*92).toFixed(1)+'%';
   lagline.style.transform = 'translateY(' + (R(-1,1)*10).toFixed(1) + 'px)';
   lagline.style.opacity = R(0.3,0.8).toFixed(2);
 
-  // ghost offset
   ghost.style.transform = 'translateX(' + (R(-1,1)*18*amp).toFixed(1) + 'px)';
   ghost.style.opacity = R(0.05,0.24).toFixed(2);
 
-  // broken pixel block (dead-pixel / frame error)
   if (Math.random() < 0.4){
     pixBlock.style.left = (Math.random()*95).toFixed(1)+'%';
     pixBlock.style.top  = (Math.random()*95).toFixed(1)+'%';
@@ -456,7 +486,6 @@ function doTick(m, elapsed){
     pixBlock.style.opacity = '0';
   }
 
-  // black strobe flashes
   if (Math.random() < 0.2){
     body.classList.add('m-blackout');
     setTimeout(function(){
@@ -511,13 +540,14 @@ function stopSound(){
   try{ audio.pause(); audio.currentTime = 0; }catch(e){}
 }
 
-/* -------- INPUT LOCK (blocks everything) -------- */
+/* -------- FULL INPUT LOCK -------- */
 var blockEvents = [
   'touchstart','touchmove','touchend','touchcancel',
   'pointerdown','pointermove','pointerup','pointercancel',
-  'mousedown','mouseup','click','dblclick','contextmenu',
+  'mousedown','mouseup','mousemove','click','dblclick','contextmenu',
   'wheel','scroll','keydown','keyup','keypress',
-  'dragstart','selectstart','gesturestart','gesturechange','gestureend'
+  'dragstart','selectstart','gesturestart','gesturechange','gestureend',
+  'beforeinput','input'
 ];
 function blockHandler(e){
   e.preventDefault();
@@ -534,6 +564,8 @@ function lockInput(){
     document.addEventListener(blockEvents[i], blockHandler, {passive:false, capture:true});
     window.addEventListener(blockEvents[i], blockHandler, {passive:false, capture:true});
   }
+  // also trap focus so nothing can be keyboard-tabbed to
+  document.addEventListener('focusin', blockHandler, {capture:true});
 }
 function unlockInput(){
   if (!isLocked) return;
@@ -543,6 +575,43 @@ function unlockInput(){
     document.removeEventListener(blockEvents[i], blockHandler, {capture:true});
     window.removeEventListener(blockEvents[i], blockHandler, {capture:true});
   }
+  document.removeEventListener('focusin', blockHandler, {capture:true});
+}
+
+/* -------- BACK BUTTON / HISTORY TRAP -------- */
+var trapped = false;
+var pushTrap = function(){
+  try{ history.pushState({ trap: 'play' }, '', location.href); }catch(e){}
+};
+function trapBackButton(){
+  if (trapped) return;
+  trapped = true;
+  pushTrap();
+  window.addEventListener('popstate', onPopState);
+}
+function onPopState(){
+  // User pressed back — push a new state forward again to trap them
+  if (trapped){
+    pushTrap();
+  }
+}
+function releaseBackButton(){
+  if (!trapped) return;
+  trapped = false;
+  window.removeEventListener('popstate', onPopState);
+}
+
+/* -------- BEFORE UNLOAD (best-effort exit warning) -------- */
+function beforeUnloadHandler(e){
+  e.preventDefault();
+  e.returnValue = 'Playback in progress. Please wait for the video to finish.';
+  return e.returnValue;
+}
+function addExitGuard(){
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+}
+function removeExitGuard(){
+  window.removeEventListener('beforeunload', beforeUnloadHandler);
 }
 
 /* -------- Wake Lock -------- */
@@ -565,13 +634,15 @@ function startCrash(){
   state = 'crashing';
   mode = 'idle';
 
-  startBtn.disabled = true;
+  // ---- lock EVERYTHING ----
+  disableAllButtons();        // visual + functional disable on every button
   btnLabel.textContent = 'Loading…';
-
   fx.classList.add('on');
   body.classList.add('crashing');
-  lockInput();
-  requestWakeLock();
+  lockInput();                // kills taps / clicks / keys / scroll
+  trapBackButton();           // blocks back button
+  addExitGuard();             // warns before closing tab
+  requestWakeLock();          // keeps screen on
 
   startTime = performance.now();
   nextTickAt = 0;
@@ -601,6 +672,8 @@ function finishCrash(){
   stopVibration();
 
   state = 'video';
+  // buttons stay DISABLED while video plays
+  btnLabel.textContent = 'Playing…';
   playVideo();
 }
 
@@ -616,7 +689,6 @@ function playVideo(){
   var p = video.play();
   if (p && p.catch){
     p.catch(function(){
-      // autoplay with sound blocked → retry muted
       try{ video.muted = true; }catch(e){}
       var p2 = video.play();
       if (p2 && p2.catch) p2.catch(function(){});
@@ -625,36 +697,42 @@ function playVideo(){
 }
 
 video.addEventListener('ended', function(){
-  // video finished → unlock everything
+  // ---- video finished → unlock everything ----
   try{ video.pause(); video.currentTime = 0; }catch(e){}
   videoLayer.classList.remove('on');
 
+  stopVibration();
   releaseWakeLock();
   unlockInput();
+  releaseBackButton();
+  removeExitGuard();
 
+  enableAllButtons();         // re-enable all buttons
   state = 'ready';
-  startBtn.disabled = false;
   btnLabel.textContent = 'Start to Play';
 });
 
 /* -------- BUTTON HANDLERS -------- */
 yesBtn.addEventListener('click', function(){
+  if (isLocked) return;
   gate.classList.add('hide');
   startCrash();
 });
 
 noBtn.addEventListener('click', function(){
+  if (isLocked) return;
   gate.classList.add('hide');
   denied.classList.remove('hide');
 });
 
 backBtn.addEventListener('click', function(){
+  if (isLocked) return;
   denied.classList.add('hide');
   gate.classList.remove('hide');
 });
 
 startBtn.addEventListener('click', function(){
-  if (crashing || state === 'crashing' || state === 'video') return;
+  if (isLocked || crashing || state === 'video') return;
   if (!liked){
     liked = true;
     count++;
@@ -669,6 +747,18 @@ document.addEventListener('dblclick', function(e){ e.preventDefault(); }, {passi
 window.addEventListener('scroll', function(){
   if (window.scrollY !== 0) window.scrollTo(0,0);
 }, {passive:true});
+
+/* -------- keep everything locked if user leaves & returns -------- */
+document.addEventListener('visibilitychange', function(){
+  if ((state === 'crashing' || state === 'video') && !isLocked){
+    lockInput();
+  }
+});
+
+/* -------- block pinch / ctrl-scroll zoom -------- */
+document.addEventListener('wheel', function(e){
+  if (e.ctrlKey) e.preventDefault();
+}, {passive:false});
 
 })();
 </script>
