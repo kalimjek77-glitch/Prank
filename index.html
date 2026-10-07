@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>18+ • Start to Play</title>
+<style>
+:root{
+  --orange:#ff6b1a;
+  --orange-2:#ff8a3d;
+
+  --gx:0px; --gy:0px;
+  --rot:0deg; --scale:1; --skx:0deg;
+  --sat:1; --con:1; --bri:1; --hue:0deg; --blur:0px;
+  --rgb:0px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0;
+  overflow:hidden;
+  overscroll-behavior:none;
+  background:#000;
+  color:#fff;
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  touch-action:manipulation;
+  -webkit-user-select:none; user-select:none;
+}
+body.locked{ touch-action:none; pointer-events:none; }
+body.locked .blocker{ pointer-events:auto; }
+
+/* ================= AGE GATE ================= */
+.gate{
+  position:fixed; inset:0; z-index:500;
+  display:grid; place-items:center;
+  background:#000; padding:24px;
+  transition:opacity .45s ease, visibility .45s ease;
+}
+.gate.hide{ opacity:0; visibility:hidden; pointer-events:none; }
+.gate-card{ width:min(92vw, 400px); text-align:center; }
+.badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:64px; height:64px; border-radius:50%;
+  background:var(--orange); color:#000;
+  font-weight:900; font-size:22px; letter-spacing:-.02em;
+  margin-bottom:22px;
+  box-shadow:0 10px 36px rgba(255,107,26,.45);
+}
+.q{
+  font-size:23px; font-weight:800;
+  margin:0 0 10px; color:#fff;
+  letter-spacing:-.015em; line-height:1.25;
+}
+.q-sub{
+  font-size:13.5px; color:#8d94a7;
+  margin:0 0 28px; line-height:1.55;
+}
+.gate-actions{ display:flex; flex-direction:column; gap:11px; }
+.btn{
+  appearance:none; border:0; cursor:pointer;
+  padding:17px 20px; border-radius:14px;
+  font:inherit; font-size:14.5px; font-weight:900;
+  letter-spacing:.05em;
+  transition:transform .12s ease, background .2s ease, opacity .2s ease;
+}
+.btn:active{ transform:scale(.97); }
+.btn-yes{
+  background:linear-gradient(180deg, var(--orange-2), var(--orange));
+  color:#000;
+  box-shadow:0 12px 32px rgba(255,107,26,.35), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.btn-no{
+  background:transparent; color:#fff;
+  border:1.5px solid #2a2f3d;
+}
+.btn-no:active{ background:#0e1119; }
+
+/* ================= MAIN STAGE ================= */
+.stage{
+  position:fixed; inset:0;
+  display:grid; place-items:center; padding:24px;
+  transform:
+    translate3d(var(--gx), var(--gy), 0)
+    rotate(var(--rot))
+    scale(var(--scale))
+    skewX(var(--skx));
+  filter:
+    saturate(var(--sat))
+    contrast(var(--con))
+    brightness(var(--bri))
+    hue-rotate(var(--hue))
+    blur(var(--blur));
+  will-change:transform, filter;
+  transform-origin:center center;
+}
+.card{
+  width:min(90vw, 360px);
+  padding:34px 26px 28px; border-radius:24px;
+  text-align:center;
+  background:#0a0a0a;
+  border:1px solid #1c1c1c;
+  box-shadow:0 30px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.04);
+}
+h1{
+  margin:0 0 22px; font-size:22px; font-weight:800;
+  letter-spacing:-.02em; color:#fff;
+}
+.like{
+  appearance:none; border:0; cursor:pointer;
+  width:100%; padding:17px 20px; border-radius:16px;
+  display:inline-flex; align-items:center; justify-content:center; gap:11px;
+  font:inherit; font-size:15.5px; font-weight:900;
+  letter-spacing:.06em; text-transform:uppercase;
+  color:#000;
+  background:linear-gradient(180deg, var(--orange-2), var(--orange));
+  box-shadow:0 14px 36px rgba(255,107,26,.42), inset 0 1px 0 rgba(255,255,255,.4);
+  transition:transform .12s ease, box-shadow .2s ease, filter .2s ease;
+  touch-action:manipulation;
+}
+.like:active{ transform:scale(.965); }
+.like[disabled]{ cursor:default; filter:saturate(.8) brightness(.9); }
+.like .icon{ width:20px; height:20px; display:block; flex:0 0 auto; }
+.like .icon path{ fill:#000; }
+.count{ margin-top:16px; font-size:12.5px; color:#6f7689; letter-spacing:.04em; }
+.count span{ color:#e6eaf5; font-weight:800; }
+
+/* ================= TOUCH BLOCKER ================= */
+.blocker{
+  position:fixed; inset:0; z-index:20000;
+  display:none; background:transparent; touch-action:none;
+}
+body.locked .blocker{ display:block; }
+
+/* ================= LAG / GLITCH FX ================= */
+.fx{
+  position:fixed; inset:0; z-index:50;
+  pointer-events:none; overflow:hidden;
+  opacity:0; transition:opacity .05s linear;
+}
+.fx.on{ opacity:1; }
+
+.fx .pause{
+  position:absolute; inset:0; background:#000; opacity:0;
+  transition:opacity .04s linear;
+}
+body.m-blackout .fx .pause{ opacity:1; }
+
+.fx .invert-overlay{
+  position:absolute; inset:0; background:#fff;
+  mix-blend-mode:difference; opacity:0;
+  transition:opacity .04s linear;
+}
+body.m-invert .fx .invert-overlay{ opacity:1; }
+
+.fx .lagline{
+  position:absolute; left:-20%; width:140%; height:14%;
+  opacity:0;
+  background:linear-gradient(180deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,.09) 45%,
+    rgba(255,255,255,0) 100%);
+  will-change:transform, opacity;
+}
+.fx .ghost{
+  position:absolute; left:0; top:0; width:100%; height:100%;
+  opacity:0;
+  background:linear-gradient(90deg,
+    rgba(180,200,255,.16),
+    rgba(180,200,255,0) 55%);
+}
+.fx .scan{
+  position:absolute; inset:0; opacity:.22;
+  background:repeating-linear-gradient(0deg,
+    rgba(0,0,0,.6) 0 1px, rgba(0,0,0,0) 1px 4px);
+}
+.fx .noise{
+  position:absolute; inset:-20%;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:200px 200px; opacity:.1;
+}
+.fx .block{
+  position:absolute; width:12%; height:6%; opacity:0;
+  mix-blend-mode:difference; pointer-events:none;
+}
+
+/* RGB split text during crash */
+body.crashing .stage h1,
+body.crashing .stage .like,
+body.crashing .stage .count{
+  text-shadow:
+    calc(var(--rgb) * 1px) 0 0 rgba(255,0,80,.9),
+    calc(var(--rgb) * -1px) 0 0 rgba(0,220,255,.9);
+}
+body.crashing::after{
+  content:""; position:fixed; inset:0; z-index:55; pointer-events:none;
+  background:radial-gradient(120% 100% at 50% 50%, transparent 42%, rgba(0,0,0,.82) 100%);
+}
+
+/* ================= VIDEO ================= */
+.video-layer{
+  position:fixed; inset:0; z-index:10000;
+  background:#000; display:none;
+  align-items:center; justify-content:center;
+}
+.video-layer.on{ display:flex; }
+.video-layer video{
+  width:100%; height:100%;
+  object-fit:contain; background:#000;
+}
+</style>
+</head>
+<body>
+
+<!-- AGE GATE -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="badge">18+</div>
+    <h2 class="q">Are you 18 years old and above?</h2>
+    <p class="q-sub">This content is intended for adults only. Please confirm your age to continue.</p>
+    <div class="gate-actions">
+      <button id="yesBtn" class="btn btn-yes">YES, I AM 18+ — START TO PLAY</button>
+      <button id="noBtn" class="btn btn-no">NO, I'M UNDER 18</button>
+    </div>
+  </div>
+</div>
+
+<!-- DENIED -->
+<div class="gate hide" id="denied">
+  <div class="gate-card">
+    <div class="badge">18+</div>
+    <h2 class="q">Access Denied</h2>
+    <p class="q-sub">Sorry, you must be at least 18 years old to view this content.</p>
+    <div class="gate-actions">
+      <button id="backBtn" class="btn btn-no">GO BACK</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="stage" id="stage">
+  <main class="card">
+    <h1>Ready?</h1>
+    <button class="like" id="startBtn">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 5.14v13.72c0 .79.87 1.28 1.54.87l11.02-6.86a1 1 0 0 0 0-1.74L9.54 4.27A1 1 0 0 0 8 5.14z"/>
+      </svg>
+      <span id="btnLabel">Start to Play</span>
+    </button>
+    <div class="count"><span id="count">12,481</span> likes</div>
+  </main>
+</div>
+
+<!-- BLOCKER -->
+<div class="blocker" id="blocker"></div>
+
+<!-- FX -->
+<div class="fx" id="fx">
+  <div class="pause"></div>
+  <div class="invert-overlay"></div>
+  <div class="lagline" id="lagline"></div>
+  <div class="ghost" id="ghost"></div>
+  <div class="block" id="pixelBlock"></div>
+  <div class="scan"></div>
+  <div class="noise"></div>
+</div>
+
+<!-- VIDEO -->
+<div class="video-layer" id="videoLayer">
+  <video id="theVideo" src="you.mp4" playsinline preload="auto"></video>
+</div>
+
+<!-- AUDIO -->
+<audio id="crashSound" src="sound.mp3" preload="auto"></audio>
+
+<script>
+(function(){
+'use strict';
+
+var root = document.documentElement;
+var body = document.body;
+
+var gate    = document.getElementById('gate');
+var denied  = document.getElementById('denied');
+var yesBtn  = document.getElementById('yesBtn');
+var noBtn   = document.getElementById('noBtn');
+var backBtn = document.getElementById('backBtn');
+
+var startBtn = document.getElementById('startBtn');
+var btnLabel = document.getElementById('btnLabel');
+var countEl  = document.getElementById('count');
+
+var fx       = document.getElementById('fx');
+var lagline  = document.getElementById('lagline');
+var ghost    = document.getElementById('ghost');
+var pixBlock = document.getElementById('pixelBlock');
+
+var audio      = document.getElementById('crashSound');
+var videoLayer = document.getElementById('videoLayer');
+var video      = document.getElementById('theVideo');
+
+var reduced = false;
+try{ reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+var AMP = reduced ? 0.4 : 1;
+
+var state = 'gate';      // gate | crashing | video | ready
+var mode = 'idle';
+var crashing = false;
+var startTime = 0;
+var nextTickAt = 0;
+var rafId = 0;
+var liked = false;
+var count = 12481;
+
+function R(a,b){ return a + Math.random()*(b-a); }
+function sv(name,val){ root.style.setProperty(name,val); }
+
+/* -------- 20s aggressive lag timeline -------- */
+var TL = [
+  { t:     0, mode:'jitter'  },
+  { t:   900, mode:'freeze'  },
+  { t:  1500, mode:'rgb'     },
+  { t:  2500, mode:'tear'    },
+  { t:  3400, mode:'jitter'  },
+  { t:  4300, mode:'invert'  },
+  { t:  5100, mode:'shake'   },
+  { t:  6300, mode:'freeze'  },
+  { t:  6900, mode:'rgb'     },
+  { t:  8000, mode:'tear'    },
+  { t:  9200, mode:'blackout'},
+  { t:  9900, mode:'shake'   },
+  { t: 11200, mode:'jitter'  },
+  { t: 12400, mode:'invert'  },
+  { t: 13300, mode:'freeze'  },
+  { t: 13900, mode:'rgb'     },
+  { t: 15000, mode:'tear'    },
+  { t: 16200, mode:'shake'   },
+  { t: 17400, mode:'jitter'  },
+  { t: 18400, mode:'settle'  },
+  { t: 20000, mode:'end'     }
+];
+
+function delayFor(m, elapsed){
+  switch(m){
+    case 'jitter': return 45 + Math.random()*45;
+    case 'rgb':    return 40 + Math.random()*40;
+    case 'tear':   return 55 + Math.random()*55;
+    case 'shake':  return 28 + Math.random()*32;
+    case 'settle': {
+      var p = Math.min(1, Math.max(0, (elapsed-18400)/1600));
+      return 130 + p*380 + Math.random()*120;
+    }
+    default: return 999999;
+  }
+}
+
+function setMode(m){
+  if (m === mode) return;
+  if (mode !== 'idle') body.classList.remove('m-' + mode);
+  mode = m;
+  if (m !== 'end') body.classList.add('m-' + m);
+}
+
+function resetVars(){
+  sv('--gx','0px'); sv('--gy','0px');
+  sv('--rot','0deg'); sv('--scale','1'); sv('--skx','0deg');
+  sv('--sat','1'); sv('--con','1'); sv('--bri','1');
+  sv('--hue','0deg'); sv('--blur','0px'); sv('--rgb','0px');
+}
+
+/* -------- one very laggy frame -------- */
+function doTick(m, elapsed){
+  var gx=0, gy=0, rot=0, skx=0, scale=1;
+  var sat=1, con=1, bri=1, hue=0, blur=0, rgb=0;
+  var amp = AMP;
+
+  switch(m){
+    case 'jitter':
+      gx = R(-1,1)*46*amp; gy = R(-1,1)*22*amp;
+      rot = R(-1,1)*1.4*amp; skx = R(-1,1)*3*amp;
+      scale = R(0.985,1.015);
+      sat = R(0.6,1.1); con = R(0.9,1.35); bri = R(0.75,1);
+      blur = Math.random()<0.28 ? R(0.4,1.8) : 0;
+      rgb = R(0,3.5)*amp;
+      break;
+    case 'shake':
+      gx = R(-1,1)*80*amp; gy = R(-1,1)*44*amp;
+      rot = R(-1,1)*2.6*amp; skx = R(-1,1)*5*amp;
+      scale = R(0.93,1.07);
+      sat = R(0.45,1.6); con = R(1.0,1.9); bri = R(0.6,1.1);
+      hue = R(-70,70); rgb = R(3,10)*amp;
+      break;
+    case 'rgb':
+      gx = R(-1,1)*16*amp; gy = R(-1,1)*8*amp;
+      scale = R(0.98,1.02);
+      sat = R(1,1.9); con = R(1.1,1.55);
+      rgb = R(4,12)*amp;
+      break;
+    case 'tear':
+      gx = R(-1,1)*64*amp; gy = R(-1,1)*14*amp;
+      skx = R(-1,1)*2.2*amp;
+      scale = R(0.96,1.04);
+      sat = R(0.7,1.35); con = R(0.9,1.55); bri = R(0.8,1.15);
+      rgb = R(2,7)*amp;
+      break;
+    case 'invert':
+      gx = R(-1,1)*20*amp; gy = R(-1,1)*10*amp;
+      rot = R(-1,1)*0.8*amp;
+      sat = 0.35; con = 1.7; bri = 1.25;
+      rgb = R(2,6)*amp;
+      break;
+    case 'settle': {
+      var p = Math.min(1, Math.max(0, (elapsed-18400)/1600));
+      var d = 1 - p;
+      gx = R(-1,1)*30*amp*d; gy = R(-1,1)*14*amp*d;
+      rot = R(-1,1)*0.7*amp*d; skx = R(-1,1)*1.2*amp*d;
+      scale = 1 + R(-0.01,0.01)*d;
+      sat = 1 - 0.15*d; con = 1 + 0.25*d; bri = 1 - 0.15*d;
+      blur = R(0,1.2)*d; rgb = R(0,3)*amp*d;
+      break;
+    }
+    default: return;
+  }
+
+  sv('--gx', gx.toFixed(2)+'px');
+  sv('--gy', gy.toFixed(2)+'px');
+  sv('--rot', rot.toFixed(3)+'deg');
+  sv('--skx', skx.toFixed(3)+'deg');
+  sv('--scale', scale.toFixed(4));
+  sv('--sat', sat.toFixed(3));
+  sv('--con', con.toFixed(3));
+  sv('--bri', bri.toFixed(3));
+  sv('--hue', hue.toFixed(0)+'deg');
+  sv('--blur', blur.toFixed(2)+'px');
+  sv('--rgb', rgb.toFixed(2)+'px');
+
+  // sliding lag band
+  lagline.style.top = (Math.random()*92).toFixed(1)+'%';
+  lagline.style.transform = 'translateY(' + (R(-1,1)*10).toFixed(1) + 'px)';
+  lagline.style.opacity = R(0.3,0.8).toFixed(2);
+
+  // ghost offset
+  ghost.style.transform = 'translateX(' + (R(-1,1)*18*amp).toFixed(1) + 'px)';
+  ghost.style.opacity = R(0.05,0.24).toFixed(2);
+
+  // broken pixel block (dead-pixel / frame error)
+  if (Math.random() < 0.4){
+    pixBlock.style.left = (Math.random()*95).toFixed(1)+'%';
+    pixBlock.style.top  = (Math.random()*95).toFixed(1)+'%';
+    pixBlock.style.width  = R(5,26).toFixed(1)+'%';
+    pixBlock.style.height = R(2,11).toFixed(1)+'%';
+    var colors = ['#ff0044','#00ffee','#ffffff','#ffec00','#a020ff'];
+    pixBlock.style.background = colors[(Math.random()*colors.length)|0];
+    pixBlock.style.opacity = R(0.3,0.95).toFixed(2);
+  } else {
+    pixBlock.style.opacity = '0';
+  }
+
+  // black strobe flashes
+  if (Math.random() < 0.2){
+    body.classList.add('m-blackout');
+    setTimeout(function(){
+      if (mode !== 'blackout') body.classList.remove('m-blackout');
+    }, 35);
+  }
+}
+
+/* -------- main loop -------- */
+function loop(now){
+  if (!crashing) return;
+  var elapsed = now - startTime;
+
+  var target = TL[0].mode;
+  for (var i=0; i<TL.length; i++) if (elapsed >= TL[i].t) target = TL[i].mode;
+  setMode(target);
+
+  if (mode === 'end'){ finishCrash(); return; }
+
+  if (now >= nextTickAt && mode !== 'freeze' && mode !== 'blackout'){
+    doTick(mode, elapsed);
+    nextTickAt = now + delayFor(mode, elapsed);
+  }
+
+  rafId = requestAnimationFrame(loop);
+}
+
+/* -------- vibration -------- */
+var vibrateTimer = null;
+function startVibration(){
+  if (!navigator.vibrate) return;
+  var pattern = [160, 60, 160, 60, 260, 40];
+  navigator.vibrate(pattern);
+  vibrateTimer = setInterval(function(){
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  }, 900);
+}
+function stopVibration(){
+  if (vibrateTimer){ clearInterval(vibrateTimer); vibrateTimer = null; }
+  if (navigator.vibrate) navigator.vibrate(0);
+}
+
+/* -------- sound -------- */
+function startSound(){
+  try{
+    audio.currentTime = 0; audio.loop = true;
+    var p = audio.play();
+    if (p && p.catch) p.catch(function(){});
+  }catch(e){}
+}
+function stopSound(){
+  try{ audio.pause(); audio.currentTime = 0; }catch(e){}
+}
+
+/* -------- INPUT LOCK (blocks everything) -------- */
+var blockEvents = [
+  'touchstart','touchmove','touchend','touchcancel',
+  'pointerdown','pointermove','pointerup','pointercancel',
+  'mousedown','mouseup','click','dblclick','contextmenu',
+  'wheel','scroll','keydown','keyup','keypress',
+  'dragstart','selectstart','gesturestart','gesturechange','gestureend'
+];
+function blockHandler(e){
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  return false;
+}
+var isLocked = false;
+function lockInput(){
+  if (isLocked) return;
+  isLocked = true;
+  body.classList.add('locked');
+  for (var i=0; i<blockEvents.length; i++){
+    document.addEventListener(blockEvents[i], blockHandler, {passive:false, capture:true});
+    window.addEventListener(blockEvents[i], blockHandler, {passive:false, capture:true});
+  }
+}
+function unlockInput(){
+  if (!isLocked) return;
+  isLocked = false;
+  body.classList.remove('locked');
+  for (var i=0; i<blockEvents.length; i++){
+    document.removeEventListener(blockEvents[i], blockHandler, {capture:true});
+    window.removeEventListener(blockEvents[i], blockHandler, {capture:true});
+  }
+}
+
+/* -------- Wake Lock -------- */
+var wakeLock = null;
+function requestWakeLock(){
+  try{
+    if ('wakeLock' in navigator){
+      navigator.wakeLock.request('screen').then(function(w){ wakeLock = w; }).catch(function(){});
+    }
+  }catch(e){}
+}
+function releaseWakeLock(){
+  try{ if (wakeLock){ wakeLock.release(); wakeLock = null; } }catch(e){}
+}
+
+/* -------- START CRASH -------- */
+function startCrash(){
+  if (crashing) return;
+  crashing = true;
+  state = 'crashing';
+  mode = 'idle';
+
+  startBtn.disabled = true;
+  btnLabel.textContent = 'Loading…';
+
+  fx.classList.add('on');
+  body.classList.add('crashing');
+  lockInput();
+  requestWakeLock();
+
+  startTime = performance.now();
+  nextTickAt = 0;
+
+  startSound();
+  startVibration();
+
+  rafId = requestAnimationFrame(loop);
+}
+
+/* -------- FINISH CRASH → PLAY VIDEO -------- */
+function finishCrash(){
+  crashing = false;
+  cancelAnimationFrame(rafId);
+  if (mode !== 'idle') body.classList.remove('m-' + mode);
+  mode = 'idle';
+
+  body.classList.remove('crashing');
+  fx.classList.remove('on');
+
+  resetVars();
+  lagline.style.opacity = '0';
+  ghost.style.opacity = '0';
+  pixBlock.style.opacity = '0';
+
+  stopSound();
+  stopVibration();
+
+  state = 'video';
+  playVideo();
+}
+
+/* -------- VIDEO AUTOPLAY -------- */
+function playVideo(){
+  videoLayer.classList.add('on');
+  try{
+    video.currentTime = 0;
+    video.muted = false;
+    video.volume = 1;
+  }catch(e){}
+
+  var p = video.play();
+  if (p && p.catch){
+    p.catch(function(){
+      // autoplay with sound blocked → retry muted
+      try{ video.muted = true; }catch(e){}
+      var p2 = video.play();
+      if (p2 && p2.catch) p2.catch(function(){});
+    });
+  }
+}
+
+video.addEventListener('ended', function(){
+  // video finished → unlock everything
+  try{ video.pause(); video.currentTime = 0; }catch(e){}
+  videoLayer.classList.remove('on');
+
+  releaseWakeLock();
+  unlockInput();
+
+  state = 'ready';
+  startBtn.disabled = false;
+  btnLabel.textContent = 'Start to Play';
+});
+
+/* -------- BUTTON HANDLERS -------- */
+yesBtn.addEventListener('click', function(){
+  gate.classList.add('hide');
+  startCrash();
+});
+
+noBtn.addEventListener('click', function(){
+  gate.classList.add('hide');
+  denied.classList.remove('hide');
+});
+
+backBtn.addEventListener('click', function(){
+  denied.classList.add('hide');
+  gate.classList.remove('hide');
+});
+
+startBtn.addEventListener('click', function(){
+  if (crashing || state === 'crashing' || state === 'video') return;
+  if (!liked){
+    liked = true;
+    count++;
+    countEl.textContent = count.toLocaleString();
+  }
+  startCrash();
+});
+
+/* -------- prevent zoom / bounce -------- */
+document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, {passive:false});
+document.addEventListener('dblclick', function(e){ e.preventDefault(); }, {passive:false});
+window.addEventListener('scroll', function(){
+  if (window.scrollY !== 0) window.scrollTo(0,0);
+}, {passive:true});
+
+})();
+</script>
+</body>
+</html>
